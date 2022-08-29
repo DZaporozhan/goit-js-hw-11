@@ -41,7 +41,7 @@ function onSearch(e) {
   addPhoto(keyString);
   setTimeout(() => {
     Notify.info(`Hooray! We found ${qsHits} images.`);
-  }, 300);
+  }, 500);
 }
 
 async function getPhoto(keyWord) {
