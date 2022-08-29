@@ -8,12 +8,14 @@ const refs = {
 };
 
 let page = 1;
+let keyString = '';
+let qsHits = '';
 
 refs.searchForm.addEventListener('submit', onSearch);
 refs.loadMoreBtn.addEventListener('click', onLoadMore);
 
 function onLoadMore() {
-  page += 1;
+  addPhoto(keyString);
 }
 
 function onSearch(e) {
@@ -23,32 +25,29 @@ function onSearch(e) {
     elements: { searchQuery: keys },
   } = e.currentTarget;
 
-  const keyString = keys.value.split(' ').join('+').toLowerCase();
-  console.log(keyString);
-
-  if (!keyString) {
+  if (!keys.value) {
     clearMarkup();
+    page = 1;
     return;
   }
-  refs.loadMoreBtn.classList.remove('is-hidden');
 
-  getPhoto(keyString)
-    .then(card => {
-      const photoArr = card.hits;
-      console.log(photoArr);
-      if (!photoArr[0]) {
-        Notify.info(
-          'Sorry, there are no images matching your search query. Please try again.'
-        );
-      }
-      renderGallery(photoArr);
-    })
-    .catch();
+  keyString = keys.value.split(' ').join('+').toLowerCase();
+  console.log(keyString);
+
+  page = 1;
+
+  clearMarkup();
+
+  addPhoto(keyString);
+  setTimeout(() => {
+    Notify.info(`Hooray! We found ${qsHits} images.`);
+  }, 300);
 }
 
 async function getPhoto(keyWord) {
   try {
-    const response = await axios.get('https://pixabay.com/api/', {
+    const url = 'https://pixabay.com/api/';
+    const options = {
       params: {
         key: '29555599-b6225d531790a6eb880d69b1e',
         q: `${keyWord}`,
@@ -58,7 +57,10 @@ async function getPhoto(keyWord) {
         page: page,
         per_page: 40,
       },
-    });
+    };
+    const response = await axios.get(url, options);
+    page += 1;
+
     return response.data;
   } catch (error) {
     console.log(error);
@@ -67,7 +69,7 @@ async function getPhoto(keyWord) {
 
 function renderGallery(data) {
   const markup = markupGallery(data);
-  refs.galleryContainer.innerHTML = markup;
+  refs.galleryContainer.insertAdjacentHTML('beforeend', markup);
 }
 
 function markupGallery(data) {
@@ -105,6 +107,35 @@ function markupGallery(data) {
     .join('');
 
   return markup;
+}
+
+function addPhoto(searchQuery) {
+  getPhoto(searchQuery)
+    .then(card => {
+      const photoArr = card.hits;
+      qsHits = card.totalHits;
+
+      if (!photoArr[0]) {
+        Notify.info(
+          'Sorry, there are no images matching your search query. Please try again.'
+        );
+        return;
+      }
+      renderGallery(photoArr);
+      refs.loadMoreBtn.classList.remove('is-hidden');
+      return card;
+    })
+    .then(data => {
+      console.log(data, page);
+      const total = (page - 1) * 40;
+      if (data.totalHits <= total) {
+        refs.loadMoreBtn.classList.add('is-hidden');
+        Notify.failure(
+          "We're sorry, but you've reached the end of search results."
+        );
+      }
+    })
+    .catch();
 }
 
 function clearMarkup() {
