@@ -1,5 +1,17 @@
-import axios from 'axios';
+import SimpleLightbox from 'simplelightbox';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
+import NewApiServise from './api-servise';
+
+import 'simplelightbox/dist/simple-lightbox.min.css';
+
+var lightbox = new SimpleLightbox('.gallery a', {
+  captions: true,
+  captionType: 'attr',
+  captionPosition: 'bottom',
+  captionDelay: 250,
+  captionsData: 'alt',
+  docClose: true,
+});
 
 const refs = {
   galleryContainer: document.querySelector('.gallery'),
@@ -7,15 +19,13 @@ const refs = {
   loadMoreBtn: document.querySelector('.load-more'),
 };
 
-let page = 1;
-let keyString = '';
-let qsHits = '';
+const newsApiServise = new NewApiServise();
 
 refs.searchForm.addEventListener('submit', onSearch);
 refs.loadMoreBtn.addEventListener('click', onLoadMore);
 
 function onLoadMore() {
-  addPhoto(keyString);
+  addPhoto();
 }
 
 function onSearch(e) {
@@ -31,40 +41,16 @@ function onSearch(e) {
     return;
   }
 
-  keyString = keys.value.split(' ').join('+').toLowerCase();
-  console.log(keyString);
+  newsApiServise.query = keys.value.split(' ').join('+').toLowerCase();
 
-  page = 1;
+  newsApiServise.resetPage();
 
   clearMarkup();
 
-  addPhoto(keyString);
+  addPhoto();
   setTimeout(() => {
-    Notify.info(`Hooray! We found ${qsHits} images.`);
+    Notify.info(`Hooray! We found ${newsApiServise.totalHits} images.`);
   }, 500);
-}
-
-async function getPhoto(keyWord) {
-  try {
-    const url = 'https://pixabay.com/api/';
-    const options = {
-      params: {
-        key: '29555599-b6225d531790a6eb880d69b1e',
-        q: `${keyWord}`,
-        image_type: 'photo',
-        orientation: 'horizontal',
-        safesearch: 'true',
-        page: page,
-        per_page: 40,
-      },
-    };
-    const response = await axios.get(url, options);
-    page += 1;
-
-    return response.data;
-  } catch (error) {
-    console.log(error);
-  }
 }
 
 function renderGallery(data) {
@@ -85,7 +71,7 @@ function markupGallery(data) {
         downloads,
       }) =>
         `<div class="photo-card">
-        <a class="gallery__link" href="${largeImageURL}">
+        <a href="${largeImageURL}">
   <img src="${webformatURL}" alt="${tags}" loading="lazy" />
   </a>
   <div class="info">
@@ -109,11 +95,11 @@ function markupGallery(data) {
   return markup;
 }
 
-function addPhoto(searchQuery) {
-  getPhoto(searchQuery)
+function addPhoto() {
+  newsApiServise
+    .getPhoto()
     .then(card => {
       const photoArr = card.hits;
-      qsHits = card.totalHits;
 
       if (!photoArr[0]) {
         Notify.info(
@@ -126,8 +112,8 @@ function addPhoto(searchQuery) {
       return card;
     })
     .then(data => {
-      console.log(data, page);
-      const total = (page - 1) * 40;
+      console.log(data, newsApiServise.page);
+      const total = (newsApiServise.page - 1) * 40;
       if (data.totalHits <= total) {
         refs.loadMoreBtn.classList.add('is-hidden');
         Notify.failure(
