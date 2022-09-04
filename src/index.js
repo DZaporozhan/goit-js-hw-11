@@ -4,15 +4,6 @@ import NewApiServise from './api-servise';
 
 import 'simplelightbox/dist/simple-lightbox.min.css';
 
-var lightbox = new SimpleLightbox('.gallery a', {
-  captions: true,
-  captionType: 'attr',
-  captionPosition: 'bottom',
-  captionDelay: 250,
-  captionsData: 'alt',
-  docClose: true,
-});
-
 const refs = {
   galleryContainer: document.querySelector('.gallery'),
   searchForm: document.querySelector('#search-form'),
@@ -27,6 +18,21 @@ refs.loadMoreBtn.addEventListener('click', onLoadMore);
 function onLoadMore() {
   addPhoto();
 }
+function slowScroll() {
+  const { height: cardHeight } =
+    refs.galleryContainer.firstElementChild.getBoundingClientRect();
+
+  refs.galleryContainer.scrollBy({
+    top: cardHeight * 2,
+    behavior: 'smooth',
+  });
+  if (
+    refs.galleryContainer.scrollTop + refs.galleryContainer.clientHeight >=
+    refs.galleryContainer.scrollHeight
+  ) {
+    addPhoto();
+  }
+}
 
 function onSearch(e) {
   e.preventDefault();
@@ -40,7 +46,7 @@ function onSearch(e) {
     page = 1;
     return;
   }
-
+  refs.loadMoreBtn.classList.add('is-hidden');
   newsApiServise.query = keys.value.split(' ').join('+').toLowerCase();
 
   newsApiServise.resetPage();
@@ -48,6 +54,8 @@ function onSearch(e) {
   clearMarkup();
 
   addPhoto();
+  refs.galleryContainer.addEventListener('scroll', slowScroll);
+
   setTimeout(() => {
     Notify.info(`Hooray! We found ${newsApiServise.totalHits} images.`);
   }, 500);
@@ -71,24 +79,24 @@ function markupGallery(data) {
         downloads,
       }) =>
         `<div class="photo-card">
-        <a href="${largeImageURL}">
-  <img src="${webformatURL}" alt="${tags}" loading="lazy" />
-  </a>
-  <div class="info">
-    <p class="info-item">
-      <b>Likes</b><br>${likes}
-    </p>
-    <p class="info-item">
-      <b>Views</b><br>${views}
-    </p>
-    <p class="info-item">
-      <b>Comments</b><br>${comments}
-    </p>
-    <p class="info-item">
-      <b>Downloads</b><br>${downloads}
-    </p>
-  </div>
-</div>`
+        <a class="link" href="${largeImageURL}">
+          <img src="${webformatURL}" alt="${tags}" loading="lazy" />
+        </a>
+        <div class="info">
+            <p class="info-item">
+              <b>Likes</b><br>${likes}
+            </p>
+            <p class="info-item">
+              <b>Views</b><br>${views}
+           </p>
+            <p class="info-item">
+              <b>Comments</b><br>${comments}
+            </p>
+            <p class="info-item">
+              <b>Downloads</b><br>${downloads}
+           </p>
+         </div>
+      </div>`
     )
     .join('');
 
@@ -109,9 +117,14 @@ function addPhoto() {
       }
       renderGallery(photoArr);
       refs.loadMoreBtn.classList.remove('is-hidden');
+
       return card;
     })
+
     .then(data => {
+      const lightbox = new SimpleLightbox('.gallery a');
+      lightbox.refresh();
+
       console.log(data, newsApiServise.page);
       const total = (newsApiServise.page - 1) * 40;
       if (data.totalHits <= total) {
